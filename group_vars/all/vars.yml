@@ -1,0 +1,16 @@
+---
+vcenter_validate_certs: false
+
+provision_vm_hostname: "{{ vcenter_hostname }}"
+provision_vm_username: "{{ vcenter_username }}"
+provision_vm_password: "{{ vcenter_password }}"
+provision_vm_validate_certs: "{{ vcenter_validate_certs }}"
+provision_vm_cluster: "{{ vcenter_cluster }}"
+provision_vm_datacenter: "{{ vcenter_datacenter }}"
+
+provision_virtual_esxi_hostname: "{{ vcenter_hostname }}"
+provision_virtual_esxi_username: "{{ vcenter_username }}"
+provision_virtual_esxi_password: "{{ vcenter_password }}"
+provision_virtual_esxi_validate_certs: "{{ vcenter_validate_certs }}"
+provision_virtual_esxi_cluster: "{{ vcenter_cluster }}"
+provision_virtual_esxi_datacenter: "{{ vcenter_datacenter }}"

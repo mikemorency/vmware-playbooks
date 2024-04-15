@@ -1,0 +1,14 @@
+---
+- hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Copy file to datastore using delegate_to
+      community.vmware.vsphere_copy:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: false
+        src: /home/mimorenc/vmware-lab/mine/custom_esxi.iso
+        datacenter: "{{ vcenter_datacenter }}"
+        datastore: eco-nfs-datastore-iso
+        path: esxi_8.iso

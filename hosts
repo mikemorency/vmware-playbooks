@@ -1,0 +1,6 @@
+---
+all:
+  hosts:
+    localhost:
+      ansible_connection: local
+      ansible_python_interpreter: /home/mimorenc/miniconda3/envs/vmware-lab/bin/python

@@ -1,0 +1,124 @@
+- name: Foo
+  gather_facts: false
+  hosts: localhost
+  vars:
+    resource_prefix: mmtest
+    resource_pool_name: "{{ resource_prefix }}-pool"
+    network_name: "{{ resource_prefix }}-network"
+    esxi_root_password: !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      62313037386139393838313337393462623737303434623761613030396432343263656137633033
+      3364363539373765363030386566663664356534393361340a313763613365663338336262666439
+      35383764356636663534383636663730366636373064356130623831646234626262303233623961
+      3332316138663437380a396563646432326435623962623136323565323530633934643739613733
+      6465
+    esxi_iso_path: "[eco-nfs-datastore-iso] esxi_8.iso"
+    esxi_names:
+      - "{{ resource_prefix }}-esxi-1"
+      - "{{ resource_prefix }}-esxi-2"
+      - "{{ resource_prefix }}-esxi-3"
+    nested_vcenter_iso_path: /home/mimorenc/Downloads/vcenter.8.0.2-23319993.iso
+    nested_vcenter_hostname: "{{ resource_prefix }}-nested-vcsa.local"
+
+  pre_tasks:
+    - name: Add VM Network Portgroup
+      community.vmware.vmware_portgroup:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        cluster: "{{ vcenter_cluster }}"
+        validate_certs: "{{ vcenter_validate_certs }}"
+        switch: vSwitch0
+        portgroup: "{{ network_name }}"
+        security:
+          forged_transmits: true
+          promiscuous_mode: true
+
+    - name: Add Resource Pool
+      community.vmware.vmware_resource_pool:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+        validate_certs: "{{ vcenter_validate_certs }}"
+        resource_pool: "{{ resource_pool_name }}"
+        state: present
+
+  roles:
+    - role: cloud.vmware_ops.provision_virtual_esxi
+      vars:
+        provision_virtual_esxi_resource_pool: "{{ resource_pool_name }}"
+        provision_virtual_esxi_folder: ""
+        provision_virtual_esxi_vm_names: "{{ esxi_names }}"
+        provision_virtual_esxi_iso_path: "{{ esxi_iso_path }}"
+        provision_virtual_esxi_networks:
+          - name: "{{ network_name }}"
+            device_type: "vmxnet3"
+            type: "dhcp"
+        provision_virtual_esxi_disks:
+          - size_gb: 100
+            type: thin
+            datastore: datastore3
+            #autoselect_datastore: true
+        provision_virtual_esxi_memory_mb: 18000
+        provision_virtual_esxi_cpus: 6
+
+  tasks:
+    - name: Get Instance Info From ESXi 1
+      community.vmware.vmware_guest_info:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        datacenter: "{{ vcenter_datacenter }}"
+        validate_certs: "{{ vcenter_validate_certs }}"
+        name: "{{ esxi_names[0] }}"
+      register: _first_esxi_info
+      tags: [foo]
+
+    - name: Add Temporary DNS Record for Nested Vcenter
+      ansible.builtin.lineinfile:
+        dest: /etc/hosts
+        regexp: "^.* {{ nested_vcenter_hostname }}$"
+        line: "{{ _first_esxi_info.instance.ipv4 }}  {{ nested_vcenter_hostname }}"
+        state: present
+      become: true
+      tags: [foo]
+
+    - name: Deploy Nested VCenter
+      ansible.builtin.import_role:
+        name: cloud.vmware_ops.provision_vcenter
+      vars:
+        provision_vcenter_hostname: "{{ _first_esxi_info.instance.ipv4 }}"
+        provision_vcenter_username: root
+        provision_vcenter_password: "{{ esxi_root_password }}"
+        provision_vcenter_validate_certs: false
+        provision_vcenter_vm_name: "{{ resource_prefix }}-nested-vcsa"
+        provision_vcenter_vm_network_hostname: "{{ nested_vcenter_hostname }}"
+        provision_vcenter_iso_path: "{{ nested_vcenter_iso_path }}"
+        provision_vcenter_vm_network_mode: dhcp
+        #
+        provision_vcenter_vm_network_name: VM Network
+        provision_vcenter_vm_datastore: datastore1
+        provision_vcenter_vm_password: "{{ esxi_root_password }}"
+      tags: [foo]
+
+    - name: Get Nested VCenter Info
+      community.vmware.vmware_guest_info:
+        hostname: "{{ _first_esxi_info.instance.ipv4 }}"
+        username: root
+        password: "{{ esxi_root_password }}"
+        validate_certs: "{{ vcenter_validate_certs }}"
+        datacenter: ""
+        name: "{{ resource_prefix }}-nested-vcsa"
+      register: _nested_vcsa_info
+      tags: [foo]
+
+    - name: Add DNS Record for Nested Vcenter
+      ansible.builtin.lineinfile:
+        dest: /etc/hosts
+        regexp: "^.* {{ nested_vcenter_hostname }}$"
+        line: "{{ _nested_vcsa_info.instance.ipv4 }} {{ nested_vcenter_hostname }}"
+        state: present
+      become: true
+      tags: [foo]

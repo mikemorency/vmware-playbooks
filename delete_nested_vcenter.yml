@@ -1,0 +1,47 @@
+- name: Foo
+  gather_facts: false
+  hosts: localhost
+  vars:
+    resource_prefix: mmtest
+    resource_pool_name: "{{ resource_prefix }}-pool"
+    network_name: "{{ resource_prefix }}-network"
+    esxi_names:
+      - "{{ resource_prefix }}-esxi-1"
+      - "{{ resource_prefix }}-esxi-2"
+      - "{{ resource_prefix }}-esxi-3"
+
+  tasks:
+    - name: Delete ESXi Hosts
+      ansible.builtin.include_role:
+        name: cloud.vmware_ops.provision_vm
+      vars:
+        provision_vm_resource_pool: "{{ resource_pool_name }}"
+        provision_vm_folder: ""
+        provision_vm_name: "{{ _esxi_name }}"
+        provision_vm_state: absent
+        provision_vm_force: true
+      loop: "{{ esxi_names }}"
+      loop_control:
+        loop_var: _esxi_name
+
+    - name: Delete VM Network Portgroup
+      community.vmware.vmware_portgroup:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        cluster: "{{ vcenter_cluster }}"
+        validate_certs: "{{ vcenter_validate_certs }}"
+        switch: vSwitch0
+        portgroup: "{{ network_name }}"
+        state: absent
+
+    - name: Delete Resource Pool
+      community.vmware.vmware_resource_pool:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+        validate_certs: "{{ vcenter_validate_certs }}"
+        resource_pool: "{{ resource_pool_name }}"
+        state: absent
