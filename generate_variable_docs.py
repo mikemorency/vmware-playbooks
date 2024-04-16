@@ -55,6 +55,9 @@ class Role():
             except KeyError:
                 groups['other'] = set([variable])
 
+        for group, vals in groups.items():
+            groups[group] = sorted(vals)
+
         return groups
 
     def read_default_values(self):
