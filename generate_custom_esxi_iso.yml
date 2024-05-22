@@ -1,0 +1,85 @@
+---
+- name: Generate Custom ESXi ISO
+  hosts: localhost
+  gather_facts: false
+  vars:
+    oem_esxi_iso_path: /home/mimorenc/Downloads/esxi-8.0U2b-23305546.x86_64.iso
+    oem_esxi_iso_mount_point: /tmp/oem_esxi
+    custom_esxi_iso_mount_point: /tmp/custom_esxi
+
+  tasks:
+    - name: Create Mount Points
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+      loop:
+        - "{{ oem_esxi_iso_mount_point }}"
+        - "{{ custom_esxi_iso_mount_point }}"
+
+    - name: Install from ISO
+      block:
+        - name: Mount vCSA ISO as Read-Only
+          ansible.posix.mount:
+            path: "{{ oem_esxi_iso_mount_point }}"
+            src: "{{ oem_esxi_iso_path }}"
+            fstype: iso9660
+            opts: ro,noauto
+            state: ephemeral
+          become: true
+        - name: Synchronization of src on the control machine to dest on the remote hosts
+          ansible.posix.synchronize:
+            src: "{{ oem_esxi_iso_mount_point }}/"
+            dest: "{{ custom_esxi_iso_mount_point }}"
+            perms: false
+            recursive: true
+      always:
+        - name: Unmount vCSA ISO
+          ansible.posix.mount:
+            path: "{{ oem_esxi_iso_mount_point }}"
+            state: unmounted
+          become: true
+
+    - name: Copy Over Kickstarter Script
+      ansible.builtin.copy:
+        src: ks_cust.cfg
+        dest: "{{ custom_esxi_iso_mount_point }}/ks_cust.cfg"
+
+    - name: Update boot.cfg
+      ansible.builtin.lineinfile:
+        path: "{{ custom_esxi_iso_mount_point }}/boot.cfg"
+        line: "{{ item.line }}"
+        regexp: "{{ item.regexp }}"
+        backrefs: true
+      loop:
+        - regexp: ^(kernelopt=.*)$
+          line: \1 ks=cdrom:/KS_CUST.CFG systemMediaSize=min
+        - regexp: ^(timeout=.*)$
+          line: timeout=1
+
+    - name: Update isolinux.cfg
+      ansible.builtin.lineinfile:
+        path: "{{ custom_esxi_iso_mount_point }}/isolinux.cfg"
+        line: TIMEOUT 1
+        regexp: ^TIMEOUT .*$
+
+    - name: Remove The Custom ISO If It Exists
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/custom_esxi.iso"
+        state: absent
+      become: true
+
+    - name: Generate Custom ESXi Iso
+      ansible.builtin.command: >-
+        genisoimage -relaxed-filenames -J -R
+        -o "{{ playbook_dir }}/custom_esxi.iso"
+        -b isolinux.bin -c boot.cat
+        -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e efiboot.img -no-emul-boot
+        "{{ custom_esxi_iso_mount_point }}"
+      become: true
+    # -b isolinux.bin
+    #   community.general.iso_create:
+    #     src_files: "{{ custom_esxi_iso_mount_point }}"
+    #     dest_iso: "{{ playbook_dir }}/custom_esxi.iso"
+    #     interchange_level: 3
+    #     joliet: 3
+    #     rock_ridge: "1.09"
