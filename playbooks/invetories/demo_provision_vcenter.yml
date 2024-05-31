@@ -1,0 +1,38 @@
+---
+all:
+  children:
+    provisioner:
+      hosts:
+        10.46.29.223:
+
+      vars:
+        provision_vcenter_hostname: 10.46.29.130
+        provision_vcenter_username: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          36626461653761373762393730393030663232346261396537316332613265343066326539316638
+          6237623637353931363166396331663964396463643930630a333565323037353831343961636134
+          37386232623737366566316564613062373466383738643365626365623839333361336135386534
+          6162633433396361300a303461333238366135663531306133653430336636383138353139323233
+          3738
+        provision_vcenter_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          62656131303365653863353737386235613561366632393637613838373166396632383832646331
+          3838313762316361663661626561366462653139343366360a333833656331306633366363613632
+          35333664643864383437363132653439366638333736373361346165393163653463373631366630
+          3530656337636663660a366539626162326564323931373738353163386662333734613232663237
+          3335
+        provision_vcenter_validate_certs: false
+        provision_vcenter_iso_path: /isos/vcsa.8.iso
+
+        provision_vcenter_vm_name: demovcenter
+        provision_vcenter_vm_datastore: datastore1
+        provision_vcenter_vm_password: superSecretPass1!
+
+        provision_vcenter_vm_network_hostname: 10.46.29.224
+        provision_vcenter_vm_network_mode: static
+        provision_vcenter_vm_network_address: 10.46.29.224
+        provision_vcenter_vm_network_prefix: 25
+        provision_vcenter_vm_network_gateway: 10.46.29.254
+        provision_vcenter_vm_network_name: VM Network
+        provision_vcenter_vm_network_dns:
+          - 10.47.242.10

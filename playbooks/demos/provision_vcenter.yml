@@ -1,0 +1,5 @@
+- name: Provision VCenter Server Appliance
+  gather_facts: false
+  hosts: all
+  roles:
+    - role: cloud.vmware_ops.provision_vcenter
